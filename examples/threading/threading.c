@@ -4,70 +4,64 @@
 #include <stdio.h>
 #include <pthread.h>
 
-// Optional: use these functions to add debug or error prints to your application
-// #define DEBUG_LOG(msg,...) printf("threading: " msg "\n" , ##__VA_ARGS__)
-#define DEBUG_LOG(msg,...)
-#define ERROR_LOG(msg,...) printf("threading ERROR: " msg "\n" , ##__VA_ARGS__)	
 
 void* threadfunc(void* thread_param)
 {
-	struct thread_data *thread_func_args;
-	thread_func_args = (struct thread_data*) thread_param;
-
-	thread_func_args->thread = (pthread_t *)pthread_self();	// Get Process ID of the created thread
+	struct thread_data *thread_func_args = (struct thread_data*) thread_param;
 	
-	sleep(thread_func_args->wait_to_obtain_ms);
-	pthread_mutex_lock(thread_func_args->mutex);		// Obtain Mutex Lock
-
-	sleep(thread_func_args->wait_to_release_ms);
-	pthread_mutex_unlock((*thread_func_args).mutex);		// Release Mutex Lock
+	if (usleep(thread_func_args->wait_to_obtain_ms * 1000) != 0){		// Delay in microseconds 
+		return thread_func_args;
+	}
 	
-	thread_func_args->thread_complete_success = 1;
+	if (pthread_mutex_lock(thread_func_args->mutex) != 0){		// Obtain Mutex Lock
+		return thread_func_args;
+	}
 	
-    return (void*)thread_param;
+	if (usleep(thread_func_args->wait_to_obtain_ms * 1000) != 0){
+		pthread_mutex_unlock(thread_func_args->mutex);		// Release Mutex Lock
+		return thread_func_args;
+	}
+	
+	thread_func_args->thread_complete_success = true;		// Creation of Thread successfull 
+	pthread_mutex_unlock(thread_func_args->mutex);			// Release Mutex Lock
+	
+    return thread_func_args;
 }
 
 
 bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex, int wait_to_obtain_ms, int wait_to_release_ms)
 {
-	pthread_t th;
-	struct thread_data *ptr;
-	ptr = malloc(sizeof(struct thread_data));				// Dynamic Memory Allocation
-	//printf("Address of ptr pointer is : %u\n", ptr);
-	pthread_mutex_init (mutex, NULL);					// Initialize Mutex 
+	if (wait_to_obtain_ms < 0 || wait_to_release_ms < 0){			// Check if Delay values are permissible 
+        	return false;
+    	}
+    	
+	struct thread_data *ptr = malloc(sizeof(struct thread_data));	 	// Dynamic Memory Allocation
+	if (!ptr){
+        	return false;
+    	}
 	
-	if (pthread_create(&th, NULL, &threadfunc, ptr) != 0){			// Create a Thread
-		perror("Error in Creating Thread !!");
-		return false;
+	// Assign mutex values to the Dyn. Mem. allocated pointer
+	ptr->mutex = mutex;
+	ptr->wait_to_obtain_ms = wait_to_obtain_ms;
+	ptr->wait_to_release_ms = wait_to_release_ms;
+	ptr->thread_complete_success = false;
+	
+	//pthread_mutex_init (ptr->mutex, NULL);				// Error : Initialize Mutex Lock only in the main 'C' file 
+	
+	int thread_value = pthread_create(thread, NULL, threadfunc, ptr);
+	
+	if (thread_value != 0){							// Create a Thread
+		free(ptr);
 	}
-		
-	if (pthread_join(th, (void**) &ptr) != 0){				// Waiting for thread to complete its execution
-		perror("Error at Destroying Thread !!");
-		return false;
-	}
 	
-	free(ptr);
-	pthread_mutex_destroy (mutex);		// Destroy Mutex
+	//pthread_mutex_destroy (ptr->mutex);					// Destroy Mutex
 	
-    return true;
+    return thread_value == 0;
 }
 
-// TODO: wait, obtain mutex, wait, release mutex as described by thread_data structure
-
-/**
-     * TODO: allocate memory for thread_data, setup mutex and wait arguments, pass thread_data to created thread
-     * using threadfunc() as entry point.
-     *
-     * return true if successful.
-     *
-     * See implementation details in threading.h file comment block
-     
-     
-     */
-     
-     // TODO: wait, obtain mutex, wait, release mutex as described by thread_data structure
-    // hint: use a cast like the one below to obtain thread arguments from your parameter
-    //struct thread_data* thread_func_args = (struct thread_data *) thread_param;
     
-    
+    /*if (pthread_join(*thread, (void**) &ptr) != 0){				// Waiting for thread to complete its execution
+		perror("Error at Destroying Thread !!");
+		return false;
+	}*/
 

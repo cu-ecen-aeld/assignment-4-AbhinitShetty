@@ -13,17 +13,9 @@ struct thread_data {
 	int wait_to_release_ms;
 	bool thread_complete_success;		// Set to True - thread completed with success, False - if an error occurred
 	pthread_mutex_t *mutex;
-	pthread_t *thread;
 };
 
 bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int wait_to_obtain_ms, int wait_to_release_ms);
-
-/*
-     * TODO: add other values your thread will need to manage
-     * into this structure, use this structure to communicate
-     * between the start_thread_obtaining_mutex function and
-     * your thread implementation.
-     */
 
 
 /**
